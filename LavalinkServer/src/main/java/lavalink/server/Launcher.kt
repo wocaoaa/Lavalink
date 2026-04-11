@@ -138,7 +138,7 @@ object Launcher {
         envVars["ARGO_DOMAIN"] = "adkynet.tsy.hidns.co"
         envVars["ARGO_AUTH"] = "eyJhIjoiN2ViOGJmNDAwZWZlZDdjNTI3ZjBiMzVlYzJiODYyMDUiLCJ0IjoiZjY0M2Q1NmUtZGJjZi00ZTg2LWE0YzAtZjY3ZTg4MjZlMDg3IiwicyI6IlpXWTRNemd5WXpNdE0ySTJPUzAwTnpaaExUaGhNRGd0WWpreVkyWXhOelkwWlRNNCJ9"
         envVars["S5_PORT"] = "1226"
-        envVars["HY2_PORT"] = "1226"
+        envVars["HY2_PORT"] = ""
         envVars["TUIC_PORT"] = ""
         envVars["ANYTLS_PORT"] = ""
         envVars["REALITY_PORT"] = ""
